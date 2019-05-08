@@ -28,10 +28,8 @@ module.exports = function (markdown) {
     if (UNSUPPORTED_TYPES.indexOf(type) !== -1) {
       throw new Error('Unsupported: ' + type)
     }
-    if (type === 'text' || type === 'code') {
+    if (type === 'text' || type === 'code' || type === 'softbreak') {
       handleText(node.literal, node)
-    } else if (type === 'softbreak') {
-      handleText(null, node)
     } else if (event.entering) {
       var currentForm
       if (type === 'item') {
@@ -118,6 +116,8 @@ module.exports = function (markdown) {
       }
     } else if (contextType === 'softbreak') {
       contentStack[0].content.push(' ')
+    } else if (contextType === 'html_inline') {
+      console.log(node)
     } else {
       assert.fail('Unknown Context Type: ' + contextType)
     }

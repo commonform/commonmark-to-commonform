@@ -1,6 +1,54 @@
 var tape = require('tape')
 var toCommonForm = require('./')
 
+tape('component', function (test) {
+  var commonmark = [
+    '# First Heading',
+    'first content',
+    '',
+    '<component',
+    '  heading="Copyright License"',
+    '  repository="api.commonform.org"',
+    '  publisher="kemitchell"',
+    '  project="orthodox-software-copyright-license"',
+    '  edition="1e"',
+    '  upgrade="yes" >',
+    '  <term component="Licensor" form="Vendor">',
+    '  <term component="Licensee" form="Customer">',
+    '  <term component="Program" form="Software">',
+    '  <heading component="Express Warranties" to="Guarantees">',
+    '</component>'
+  ].join('\n')
+  var form = {
+    content: [
+      {
+        heading: 'First Heading',
+        form: { content: ['first content'] }
+      },
+      {
+        heading: 'Copyright License',
+        repository: 'api.commonform.org',
+        publisher: 'kemitchell',
+        project: 'orthodox-software-copyright-license',
+        edition: '1e',
+        upgrade: 'yes',
+        substitutions: {
+          terms: {
+            'Licensor': 'Vendor',
+            'Licensee': 'Customer',
+            'Program': 'Software'
+          },
+          headings: {
+            'Express Warranties': 'Guarantees'
+          }
+        }
+      }
+    ]
+  }
+  test.deepEqual(toCommonForm(commonmark), form)
+  test.end()
+})
+
 tape('quote in reference', function (test) {
   var heading = "Client's Obligations"
   var commonmark = [
