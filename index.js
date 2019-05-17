@@ -2,6 +2,7 @@ var assert = require('assert')
 var commonmark = require('commonmark')
 var fixStrings = require('commonform-fix-strings')
 var parse5 = require('parse5')
+var validate = require('commonform-validate')
 
 module.exports = function (markdown) {
   assert(typeof markdown === 'string')
@@ -57,28 +58,37 @@ module.exports = function (markdown) {
                 component[name] = attribute.value
               }
             })
+            if (!validate.component(component)) {
+              throw new Error('Invalid component')
+            }
           } else {
             component = childStack[0]
+            if (nodeName !== 'term' && nodeName !== 'heading') {
+              throw new Error('Invalid Tag in Component: ' + nodeName)
+            }
             try {
               var inComponent = parsedNode.attrs
                 .find(function (attr) {
                   return attr.name === 'component'
                 })
                 .value
+            } catch (error) {
+              throw new Error(nodeName + ' tag missing "component" attribute.')
+            }
+            try {
               var inForm = parsedNode.attrs
                 .find(function (attr) {
                   return attr.name === 'form'
                 })
                 .value
             } catch (error) {
-              throw new Error('Invalid Tag Type: ' + nodeName)
+              throw new Error(nodeName + ' tag missing "form" attribute.')
             }
+            /* istanbul ignore else */
             if (nodeName === 'term') {
               component.substitutions.terms[inComponent] = inForm
             } else if (nodeName === 'heading') {
               component.substitutions.headings[inComponent] = inForm
-            } else {
-              throw new Error('Invalid tag in component: ' + nodeName)
             }
           }
         }
