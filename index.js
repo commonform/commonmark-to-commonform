@@ -1,6 +1,7 @@
 var assert = require('assert')
 var commonmark = require('commonmark')
 var fixStrings = require('commonform-fix-strings')
+var parse5 = require('parse5')
 
 module.exports = function (markdown) {
   assert(typeof markdown === 'string')
@@ -25,15 +26,62 @@ module.exports = function (markdown) {
   while ((event = walker.next())) {
     var node = event.node
     var type = node.type
+    var literal = node.literal
     if (UNSUPPORTED_TYPES.indexOf(type) !== -1) {
       throw new Error('Unsupported: ' + type)
     }
     if (type === 'text' || type === 'code' || type === 'softbreak') {
-      handleText(node.literal, node)
+      handleText(literal, node)
     } else if (event.entering) {
       var currentForm
       if (type === 'item') {
         unshiftChild()
+      } else if (type === 'html_inline') {
+        var component
+        var parsedNode = parse5.parseFragment(literal).childNodes[0]
+        if (!parsedNode) {
+          // Pass on e.g. </component>.
+        } else {
+          var nodeName = parsedNode.nodeName
+          if (nodeName === 'component') {
+            unshiftComponent()
+            component = childStack[0]
+            var passThrough = [
+              'heading', 'repository',
+              'publisher', 'project',
+              'edition', 'upgrade'
+            ]
+            parsedNode.attrs.forEach(function (attribute) {
+              var name = attribute.name
+              if (passThrough.indexOf(name) !== -1) {
+                component[name] = attribute.value
+              }
+            })
+          } else {
+            component = childStack[0]
+            try {
+              var inComponent = parsedNode.attrs
+                .find(function (attr) {
+                  return attr.name === 'component'
+                })
+                .value
+              var inForm = parsedNode.attrs
+                .find(function (attr) {
+                  return attr.name === 'form'
+                })
+                .value
+            } catch (error) {
+              throw new Error('Invalid Tag Type: ' + nodeName)
+            }
+            if (nodeName === 'term') {
+              component.substitutions.terms[inComponent] = inForm
+            } else if (nodeName === 'heading') {
+              component.substitutions.headings[inComponent] = inForm
+            } else {
+              throw new Error('Invalid tag in component: ' + nodeName)
+            }
+          }
+        }
       } else if (type === 'strong') {
         addContentElement({ definition: '' })
       } else if (type === 'emph') {
@@ -59,12 +107,12 @@ module.exports = function (markdown) {
     } else {
       if (
         type === 'item' ||
+        type === 'html_inline' ||
         type === 'strong' ||
         type === 'emph' ||
         type === 'link'
       ) {
-        contentStack.shift()
-        childStack.shift()
+        shiftChild()
       }
       contextStack.shift()
     }
@@ -73,6 +121,15 @@ module.exports = function (markdown) {
   function shiftChild () {
     contentStack.shift()
     childStack.shift()
+  }
+
+  function unshiftComponent () {
+    shiftChild()
+    var component = { substitutions: { terms: {}, headings: {} } }
+    currentForm = contentStack[0]
+    currentForm.content.push(component)
+    contentStack.unshift(null)
+    childStack.unshift(component)
   }
 
   function unshiftChild () {
@@ -116,8 +173,15 @@ module.exports = function (markdown) {
       }
     } else if (contextType === 'softbreak') {
       contentStack[0].content.push(' ')
-    } else if (contextType === 'html_inline') {
-      console.log(node)
+    } else if (
+      contextType === 'html_inline'
+      /*
+      contextType === 'component' ||
+      contextType === 'term substitution' ||
+      contextType === 'heading substitution'
+      */
+    ) {
+      // Pass.
     } else {
       assert.fail('Unknown Context Type: ' + contextType)
     }

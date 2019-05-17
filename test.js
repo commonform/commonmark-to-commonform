@@ -16,7 +16,7 @@ tape('component', function (test) {
     '  <term component="Licensor" form="Vendor">',
     '  <term component="Licensee" form="Customer">',
     '  <term component="Program" form="Software">',
-    '  <heading component="Express Warranties" to="Guarantees">',
+    '  <heading component="Express Warranties" form="Guarantees">',
     '</component>'
   ].join('\n')
   var form = {
@@ -45,7 +45,7 @@ tape('component', function (test) {
       }
     ]
   }
-  test.deepEqual(toCommonForm(commonmark), form)
+  test.deepEqual(toCommonForm(commonmark).form, form)
   test.end()
 })
 
